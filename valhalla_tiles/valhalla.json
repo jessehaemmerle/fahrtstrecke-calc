@@ -104,7 +104,7 @@
   },
   "mjolnir": {
     "admin": "/custom_files/admin_data/admins.sqlite",
-    "concurrency": 16,
+    "concurrency": "16",
     "data_processing": {
       "allow_alt_name": false,
       "apply_country_overrides": true,
@@ -193,10 +193,10 @@
     },
     "isochrone": {
       "max_contours": 4,
-      "max_distance": 25000.0,
+      "max_distance": 1000000.0,
       "max_distance_contour": 200,
       "max_locations": 1,
-      "max_time_contour": 120
+      "max_time_contour": 2880
     },
     "max_alternates": 2,
     "max_distance_disable_hierarchy_culling": 0,
