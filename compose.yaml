@@ -4,3 +4,20 @@ services:
     ports:
       - "8080:80"
     restart: unless-stopped
+
+  valhalla:
+    image: ghcr.io/gis-ops/docker-valhalla/valhalla:latest
+    volumes:
+      - valhalla_tiles:/custom_files
+    environment:
+      - tile_urls=${VALHALLA_TILE_URL:-https://download.geofabrik.de/europe/dach-latest.osm.pbf}
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8002/status"]
+      interval: 30s
+      timeout: 10s
+      retries: 40
+      start_period: 600s
+    restart: unless-stopped
+
+volumes:
+  valhalla_tiles:
