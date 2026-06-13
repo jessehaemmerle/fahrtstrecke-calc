@@ -753,7 +753,7 @@ document.getElementById('clear-btn').addEventListener('click', () => {
 // ── Persist API key in localStorage ───────────────────────────
 const keyInput = document.getElementById('api-key');
 const savedKey = localStorage.getItem('ors_api_key');
-keyInput.value = savedKey || 'eyJvcmciOiI1YjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJpZCI6IjM1MjdhYzU0ODM2OTQ3NThhZDAzYzQxYmQ2MGUwMDA5IiwiaCI6Im11cm11cjY0In0=';
+keyInput.value = savedKey || '${ORS_API_KEY}';
 keyInput.addEventListener('change', () => {
     localStorage.setItem('ors_api_key', keyInput.value.trim());
 });
