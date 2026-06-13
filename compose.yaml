@@ -9,10 +9,13 @@ services:
     image: ghcr.io/gis-ops/docker-valhalla/valhalla:latest
     volumes:
       - ./valhalla_tiles:/custom_files
+    environment:
+      - use_tiles_ignore_pbf=True   # Vorhandene Tiles direkt laden, kein Rebuild
+      - build_tar=False             # Kein erneutes Tar-Packen beim Start
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:8002/status"]
       interval: 30s
       timeout: 10s
       retries: 40
-      start_period: 600s
+      start_period: 120s
     restart: unless-stopped
