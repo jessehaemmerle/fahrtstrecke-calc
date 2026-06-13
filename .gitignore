@@ -1,1 +1,4 @@
 .env
+valhalla_tiles/*.osm.pbf
+valhalla_tiles/valhalla_tiles/
+valhalla_tiles/valhalla_tiles.tar
