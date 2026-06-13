@@ -383,9 +383,9 @@
         </div>
 
         <div style="margin-top: 14px;">
-            <label for="time-input">Maximale Reisezeit <span style="color:#94a3b8;font-weight:400">(max. 60 min)</span></label>
+            <label for="time-input">Maximale Reisezeit</label>
             <div class="time-row">
-                <input type="number" id="time-input" value="30" min="1" max="60" />
+                <input type="number" id="time-input" value="30" min="1" max="99999999999999" />
                 <span class="time-unit">Minuten</span>
             </div>
         </div>
@@ -397,7 +397,7 @@
         <div class="sub-settings" id="sub-settings">
             <label>Intervall-Schritt</label>
             <div class="time-row">
-                <input type="number" id="step-input" value="15" min="5" max="60" />
+                <input type="number" id="step-input" value="15" min="5" max="99999999999999" />
                 <span class="time-unit">Minuten</span>
             </div>
         </div>
@@ -421,7 +421,7 @@
     </div>
 
     <div class="sidebar-footer">
-        Routing: OpenRouteService &nbsp;·&nbsp; Karte: © OpenStreetMap-Mitwirkende
+        Routing: Valhalla / OpenStreetMap &nbsp;·&nbsp; Karte: © OpenStreetMap-Mitwirkende
     </div>
 </div>
 
@@ -595,36 +595,39 @@ function isoColor(index, total) {
     return `hsl(${hue}, 72%, 48%)`;
 }
 
-// ── Isochrone calculation ──────────────────────────────────────
+// ── Valhalla costing map ───────────────────────────────────────
+const COSTING = {
+    'driving-car':      'auto',
+    'cycling-regular':  'bicycle',
+    'foot-walking':     'pedestrian'
+};
+
+// ── Isochrone calculation (Valhalla – kein API-Key nötig) ──────
 async function calculate() {
-    const apiKey = document.getElementById('api-key').value.trim();
-    if (!apiKey) { showStatus('Bitte API-Schlüssel eingeben.', 'error'); return; }
     if (!selectedLocation) { showStatus('Bitte Startpunkt wählen.', 'error'); return; }
 
-    let maxMin = parseInt(document.getElementById('time-input').value);
+    const maxMin = parseInt(document.getElementById('time-input').value);
     if (!maxMin || maxMin < 1) { showStatus('Ungültige Reisezeit.', 'error'); return; }
-    if (maxMin > 60) {
-        maxMin = 60;
-        document.getElementById('time-input').value = 60;
-    }
 
-    // Build range array (seconds)
-    let ranges;
+    // Build contours array (minutes, not seconds)
+    let contours;
     if (multiMode) {
         const step = parseInt(document.getElementById('step-input').value) || 15;
-        ranges = [];
-        for (let t = step; t < maxMin; t += step) ranges.push(t * 60);
-        ranges.push(maxMin * 60);
-        if (ranges.length > 5) {
-            // Keep evenly-spaced subset of max 5
-            const kept = [ranges[0]];
-            const stride = (ranges.length - 1) / 4;
-            for (let i = 1; i < 4; i++) kept.push(ranges[Math.round(i * stride)]);
-            kept.push(ranges[ranges.length - 1]);
-            ranges = [...new Set(kept)].sort((a, b) => a - b);
+        const times = [];
+        for (let t = step; t < maxMin; t += step) times.push(t);
+        times.push(maxMin);
+        // Limit to 5 evenly-spaced rings
+        if (times.length > 5) {
+            const kept = [times[0]];
+            const stride = (times.length - 1) / 4;
+            for (let i = 1; i < 4; i++) kept.push(times[Math.round(i * stride)]);
+            kept.push(times[times.length - 1]);
+            contours = [...new Set(kept)].sort((a, b) => a - b).map(t => ({ time: t }));
+        } else {
+            contours = times.map(t => ({ time: t }));
         }
     } else {
-        ranges = [maxMin * 60];
+        contours = [{ time: maxMin }];
     }
 
     const btn = document.getElementById('calc-btn');
@@ -633,33 +636,28 @@ async function calculate() {
     showStatus('Anfrage wird gesendet …', 'loading');
 
     try {
-        const res = await fetch(
-            `https://api.openrouteservice.org/v2/isochrones/${selectedMode}`,
-            {
-                method: 'POST',
-                headers: {
-                    'Authorization': apiKey,
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/geo+json'
-                },
-                body: JSON.stringify({
-                    locations:  [[selectedLocation.lng, selectedLocation.lat]],
-                    range:      ranges,
-                    range_type: 'time',
-                    attributes: ['area']
-                })
-            }
-        );
+        const res = await fetch('https://valhalla1.openstreetmap.de/isochrone', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                locations:  [{ lat: selectedLocation.lat, lon: selectedLocation.lng }],
+                costing:    COSTING[selectedMode] || 'auto',
+                contours:   contours,
+                polygons:   true,
+                denoise:    0.5,
+                generalize: 150
+            })
+        });
 
         if (!res.ok) {
             let msg = `HTTP ${res.status}`;
-            try { const j = await res.json(); msg = j.error?.message || msg; } catch {}
+            try { const j = await res.json(); msg = j.error || msg; } catch {}
             throw new Error(msg);
         }
 
         const geojson = await res.json();
         renderIsochrones(geojson);
-        showStatus(`Berechnung abgeschlossen (${ranges.length} Ring${ranges.length > 1 ? 'e' : ''}).`, 'success');
+        showStatus(`Berechnung abgeschlossen (${contours.length} Ring${contours.length > 1 ? 'e' : ''}).`, 'success');
 
     } catch (e) {
         showStatus(`Fehler: ${e.message}`, 'error');
@@ -670,13 +668,13 @@ async function calculate() {
 }
 
 function renderIsochrones(geojson) {
-    // Remove old layers
     isoLayers.forEach(l => map.removeLayer(l));
     isoLayers = [];
 
-    // Sort descending by value (largest/outermost first → rendered below)
+    // Valhalla returns contour in minutes via properties.contour
+    // Sort descending (outermost first → drawn below smaller rings)
     const features = [...geojson.features].sort(
-        (a, b) => b.properties.value - a.properties.value
+        (a, b) => b.properties.contour - a.properties.contour
     );
 
     features.forEach((feat, idx) => {
@@ -691,15 +689,11 @@ function renderIsochrones(geojson) {
             }
         });
 
-        const minutes = Math.round(feat.properties.value / 60);
-        const areakm2 = feat.properties.area
-            ? ` · ${(feat.properties.area / 1e6).toFixed(1)} km²` : '';
-        layer.bindPopup(`<strong>${minutes} Minuten</strong>${areakm2}`);
+        layer.bindPopup(`<strong>${feat.properties.contour} Minuten</strong>`);
         layer.addTo(map);
         isoLayers.push(layer);
     });
 
-    // Fit view
     if (isoLayers.length) {
         map.fitBounds(L.featureGroup(isoLayers).getBounds(), { padding: [30, 30] });
     }
@@ -712,21 +706,14 @@ function renderLegend(features) {
     const content = document.getElementById('legend-content');
     section.style.display = 'block';
 
-    // Show from smallest (innermost) to largest (outermost) for readability
-    const sorted = [...features].sort((a, b) => a.properties.value - b.properties.value);
+    const sorted = [...features].sort((a, b) => a.properties.contour - b.properties.contour);
     const total  = features.length;
 
-    // Reverse-map: sorted index → original desc index (for color matching)
     content.innerHTML = sorted.map((feat, sortedIdx) => {
-        const descIdx = total - 1 - sortedIdx;
-        const color   = isoColor(descIdx, total);
-        const minutes = Math.round(feat.properties.value / 60);
-        const area    = feat.properties.area
-            ? `<span class="legend-sub">${(feat.properties.area / 1e6).toFixed(1)} km²</span>` : '';
-
+        const color = isoColor(total - 1 - sortedIdx, total);
         return `<div class="legend-item">
             <div class="legend-swatch" style="background:${color}"></div>
-            <span class="legend-label">bis ${minutes} Minuten ${area}</span>
+            <span class="legend-label">bis ${feat.properties.contour} Minuten</span>
         </div>`;
     }).join('');
 }
@@ -737,14 +724,6 @@ document.getElementById('clear-btn').addEventListener('click', () => {
     isoLayers = [];
     document.getElementById('legend-section').style.display = 'none';
     clearStatus();
-});
-
-// ── Persist API key in localStorage ───────────────────────────
-const keyInput = document.getElementById('api-key');
-const savedKey = localStorage.getItem('ors_api_key');
-keyInput.value = savedKey || '${ORS_API_KEY}';
-keyInput.addEventListener('change', () => {
-    localStorage.setItem('ors_api_key', keyInput.value.trim());
 });
 
 // ── Wire up calculate button ───────────────────────────────────

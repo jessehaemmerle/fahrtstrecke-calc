@@ -1,8 +1,6 @@
 FROM nginx:alpine
 
-COPY index.html /usr/share/nginx/html/index.html.template
-COPY docker-entrypoint.sh /docker-entrypoint.d/40-substitute-env.sh
-RUN chmod +x /docker-entrypoint.d/40-substitute-env.sh
+COPY index.html /usr/share/nginx/html/index.html
 
 EXPOSE 80
 
