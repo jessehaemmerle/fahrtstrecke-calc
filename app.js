@@ -182,20 +182,13 @@ function isoColor(index, total) {
     return `hsl(${hue}, 72%, 48%)`;
 }
 
-// ── Valhalla fetch (lokal via nginx-Proxy, Fallback auf öffentlich) ──
+// ── Valhalla fetch via nginx → Stadia Maps (API-Key serverseitig) ────
 async function valhallaPost(body) {
-    const opts = {
+    return fetch('/isochrone', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
         body:    JSON.stringify(body)
-    };
-    // Lokaler Proxy (Docker Compose mit eigenem Valhalla – kein Zeitlimit)
-    try {
-        const r = await fetch('/isochrone', opts);
-        if (r.ok) return r;
-    } catch {}
-    // Fallback: öffentliche Valhalla-Instanz (max. 100 min)
-    return fetch('https://valhalla1.openstreetmap.de/isochrone', opts);
+    });
 }
 
 // ── Valhalla costing map ───────────────────────────────────────

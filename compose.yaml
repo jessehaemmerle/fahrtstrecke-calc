@@ -3,23 +3,23 @@ services:
     build: .
     ports:
       - "8080:80"
+    environment:
+      - STADIA_API_KEY=${STADIA_API_KEY}
     restart: unless-stopped
 
-  valhalla:
-    image: ghcr.io/gis-ops/docker-valhalla/valhalla:latest
-    volumes:
-      - ./valhalla_tiles:/custom_files
-    environment:
-      # True:  Vorhandene Tiles direkt laden (schneller Start nach erstem Build)
-      # False: Tiles aus PBF-Datei neu bauen (nur beim ersten Deployment nötig)
-      - use_tiles_ignore_pbf=${USE_TILES_IGNORE_PBF:-True}
-      - build_tar=${BUILD_TAR:-False}
-      - tile_urls=${VALHALLA_TILE_URL:-}
-    healthcheck:
-      test: ["CMD", "curl", "-sf", "http://localhost:8002/status"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      # Erster Tile-Build (Server) dauert ~2h; normale Starts ~30s
-      start_period: ${VALHALLA_START_PERIOD:-120s}
-    restart: unless-stopped
+  # Optionaler lokaler Valhalla-Container (nur nötig wenn Stadia Maps nicht ausreicht)
+  # valhalla:
+  #   image: ghcr.io/gis-ops/docker-valhalla/valhalla:latest
+  #   volumes:
+  #     - ./valhalla_tiles:/custom_files
+  #   environment:
+  #     - use_tiles_ignore_pbf=${USE_TILES_IGNORE_PBF:-True}
+  #     - build_tar=${BUILD_TAR:-False}
+  #     - tile_urls=${VALHALLA_TILE_URL:-}
+  #   healthcheck:
+  #     test: ["CMD", "curl", "-sf", "http://localhost:8002/status"]
+  #     interval: 30s
+  #     timeout: 10s
+  #     retries: 5
+  #     start_period: ${VALHALLA_START_PERIOD:-120s}
+  #   restart: unless-stopped
