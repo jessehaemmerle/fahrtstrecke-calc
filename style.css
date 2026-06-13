@@ -171,6 +171,32 @@ input:focus {
 
 .time-unit { font-size: 13px; color: #64748b; }
 
+/* ── Unit toggle ─────────────────────────────────────── */
+.unit-toggle {
+    display: flex;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 7px;
+    overflow: hidden;
+    flex-shrink: 0;
+}
+
+.unit-btn {
+    padding: 8px 10px;
+    background: #fafafa;
+    color: #64748b;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    border: none;
+    transition: all 0.15s;
+    line-height: 1;
+}
+
+.unit-btn + .unit-btn { border-left: 1.5px solid #e2e8f0; }
+
+.unit-btn:hover  { background: #f1f5f9; color: #1e40af; }
+.unit-btn.active { background: #eff6ff; color: #1e40af; }
+
 /* ── Toggle ──────────────────────────────────────────── */
 .toggle-row {
     display: flex;

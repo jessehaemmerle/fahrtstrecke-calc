@@ -2,6 +2,7 @@
 let selectedLocation = null;
 let selectedMode     = 'driving-car';
 let multiMode        = false;
+let timeUnit         = 'min'; // 'min' | 'h'
 let markerLayer      = null;
 let isoLayers        = [];
 
@@ -134,6 +135,24 @@ document.querySelectorAll('.mode-btn').forEach(btn => {
     });
 });
 
+// ── Unit toggle ────────────────────────────────────────────────
+document.querySelectorAll('.unit-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        document.querySelectorAll('.unit-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        const input = document.getElementById('time-input');
+        const prev  = parseInt(input.value) || 0;
+        if (btn.dataset.unit === 'h') {
+            input.max   = 48;
+            input.value = Math.max(1, Math.round(prev / 60)) || 1;
+        } else {
+            input.max   = 999;
+            input.value = Math.min(999, prev * 60) || 30;
+        }
+        timeUnit = btn.dataset.unit;
+    });
+});
+
 // ── Multi-toggle ───────────────────────────────────────────────
 document.getElementById('toggle-row').addEventListener('click', () => {
     multiMode = !multiMode;
@@ -174,8 +193,9 @@ const COSTING = {
 async function calculate() {
     if (!selectedLocation) { showStatus('Bitte Startpunkt wählen.', 'error'); return; }
 
-    const maxMin = parseInt(document.getElementById('time-input').value);
-    if (!maxMin || maxMin < 1) { showStatus('Ungültige Reisezeit.', 'error'); return; }
+    const rawVal = parseInt(document.getElementById('time-input').value);
+    if (!rawVal || rawVal < 1) { showStatus('Ungültige Reisezeit.', 'error'); return; }
+    const maxMin = timeUnit === 'h' ? rawVal * 60 : rawVal;
 
     let contours;
     if (multiMode) {
