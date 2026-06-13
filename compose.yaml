@@ -13,7 +13,7 @@ services:
       - use_tiles_ignore_pbf=True   # Vorhandene Tiles direkt laden, kein Rebuild
       - build_tar=False             # Kein erneutes Tar-Packen beim Start
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:8002/status"]
+      test: ["CMD", "curl", "-sf", "http://localhost:8002/status"]
       interval: 30s
       timeout: 10s
       retries: 40
